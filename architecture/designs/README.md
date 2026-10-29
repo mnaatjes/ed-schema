@@ -20,9 +20,6 @@ SDDs adhere to IEEE 1016 / Google Design Doc conventions, specifying:
 - **Cross-Cutting Concerns:** Security, latency, memory ceilings, telemetry, and platform portability (Linux/Proton/Windows NT).
 - **Alternatives Considered:** Technical trade-offs rejected in favor of the selected approach.
 
-## Naming Convention
+## Design Specifications Catalog
 
-Design specifications are named sequentially or by subsystem topic:
-
-- `0001_subsystem_core_design.md`
-- `schema_transformation_pipeline.md`
+- [`0001_scope_and_boundary_enforcement_architecture.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/designs/0001_scope_and_boundary_enforcement_architecture.md): SDD-001 Scope and Boundary Enforcement Architecture (implementation design for ADR 0008).
