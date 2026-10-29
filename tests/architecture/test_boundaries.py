@@ -847,3 +847,104 @@ def test_dto_immutability_and_structural_purity() -> None:
                                 f"DTO {node.name} field uses forbidden mutable/framework type: "
                                 f"{ann_id}"
                             )
+
+
+def test_zero_dynamic_code_execution() -> None:
+    """Asserts that zero calls to eval, exec, or compile exist across src/ (RISK-03)."""
+    pkg_root = _get_package_root()
+    banned_functions = {"eval", "exec", "compile"}
+
+    for py_file in pkg_root.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func_id = None
+                if isinstance(node.func, ast.Name):
+                    func_id = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    func_id = node.func.attr
+                assert func_id not in banned_functions, (
+                    f"File {py_file.name}:{node.lineno} calls banned dynamic function '{func_id}' "
+                    "violating RISK-03 and ADR 0008."
+                )
+
+
+def test_zero_network_io_in_library() -> None:
+    """Asserts zero socket, HTTP client, or network library imports across src/ (RISK-05)."""
+    pkg_root = _get_package_root()
+    banned_modules = {
+        "socket",
+        "http",
+        "urllib",
+        "requests",
+        "httpx",
+        "aiohttp",
+        "websocket",
+    }
+
+    for py_file in pkg_root.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    root_mod = alias.name.split(".")[0]
+                    assert root_mod not in banned_modules, (
+                        f"File {py_file.name}:{node.lineno} imports banned network "
+                        f"module '{alias.name}' violating RISK-05 and ADR 0008."
+                    )
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                root_mod = node.module.split(".")[0]
+                assert root_mod not in banned_modules, (
+                    f"File {py_file.name}:{node.lineno} imports from banned network "
+                    f"module '{node.module}' violating RISK-05 and ADR 0008."
+                )
+
+
+def test_zero_game_domain_leakage() -> None:
+    """Asserts zero Elite Dangerous game domain vocabulary tokens in core/domain (RISK-04)."""
+    pkg_root = _get_package_root()
+    domain_dir = pkg_root / "core" / "domain"
+    banned_tokens = {
+        "commander",
+        "ship",
+        "starsystem",
+        "journal",
+        "commodity",
+        "station",
+        "market",
+    }
+
+    for py_file in domain_dir.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            # Check class definitions
+            if isinstance(node, ast.ClassDef):
+                lowered = node.name.lower()
+                for token in banned_tokens:
+                    assert token not in lowered, (
+                        f"Domain entity class '{node.name}' in {py_file.name} contains "
+                        f"banned game domain token '{token}' violating RISK-04 and ADR 0004."
+                    )
+            # Check function definitions
+            elif isinstance(node, ast.FunctionDef):
+                lowered = node.name.lower()
+                for token in banned_tokens:
+                    assert token not in lowered, (
+                        f"Domain function '{node.name}' in {py_file.name} contains "
+                        f"banned game domain token '{token}' violating RISK-04 and ADR 0004."
+                    )
+
+
+def test_zero_daemon_service_loops() -> None:
+    """Asserts zero infinite loops or daemon service threads exist in src/ (ADR 0008)."""
+    pkg_root = _get_package_root()
+
+    for py_file in pkg_root.rglob("*.py"):
+        tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.While):
+                if isinstance(node.test, ast.Constant) and node.test.value is True:
+                    raise AssertionError(
+                        f"File {py_file.name}:{node.lineno} contains infinite 'while True:' loop. "
+                        "ed-schema is a library engine and must not contain daemon loops."
+                    )
