@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier
+_commit: v0.1.6
+_src_path: https://github.com/mnaatjes/python-hexagonal-template.git
+author_email: michael.naatjes87@gmail.com
+author_name: Michael Naatjes
+include_architecture_governance: true
+package_name: ed_schema
+project_description: Deterministic JSON Schema registry, contract validator, and code
+    generation engine for Elite Dangerous
+project_name: ed-schema
+project_slug: ed-schema
+python_version: '3.12'
