@@ -3,7 +3,7 @@
 ## 1. Project Overview & Architecture
 `ed-schema` is a pure Hexagonal Architecture (Ports and Adapters) contract, schema governance, and code-generation engine for the *Elite Dangerous* software fleet, supporting Linux (Steam / Proton / Steam Deck) and native Windows NT.
 
-It acts as the shared architectural foundation for contract management across `ed-capi`, `ed-eddn`, `ed-inara`, and `ed-connectors`, handling:
+It acts as the shared architectural foundation for contract management across `ed-connectors` (unifying provider subpackages `capi`, `eddn`, `inara`, `spansh` under RFC 0001) and downstream consumers, handling:
 * **Standard JSON Schema Baseline:** Ingestion, storage, and validation of Draft-07 and Draft 2020-12 JSON Schemas.
 * **Universal API Composition Registry:** Indexing 1:1 direct REST endpoints, 1:N root-level polymorphic discriminators (EDDN `$schemaRef`), and 1:N nested batch-item RPC discriminators (Inara `events[*].eventName`) through a single unified composite key `(namespace, endpoint, discriminator_field, discriminator_value)`.
 * **Abstract HTTP Header Contract Modeling:** Declaring, validating, and generating typed DTOs for case-insensitive HTTP headers across static protocol, injected auth, and dynamic operational categories.
@@ -66,8 +66,8 @@ All changes must pass Tier 2 Quality Gates:
 * **Governing Template:** [python-hexagonal-template](https://github.com/mnaatjes/python-hexagonal-template.git)
 * **Unified Process Documentation:**
   * Master Architectural Governance Root: [`architecture/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/README.md)
-  * Master Risk Register: [`architecture/risk/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/README.md)
-  * Use-Case Specifications: [`architecture/use-cases/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/use-cases/README.md)
+  * Master Risk Register: [`architecture/risk/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/README.md) ([`risk-list.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/risk-list.md))
+  * Use-Case Specifications: [`architecture/use-cases/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/use-cases/README.md) (`UC-01`, `UC-02`, `UC-03`, `UC-04`)
   * Architectural Decision Records:
     * [`ADR 0001: Multi-Namespace Manifest Loading and Composite Schema Registry`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0001_multi_namespace_manifest_loading_and_composite_schema_registry.md)
     * [`ADR 0002: Programmatic Build-Time Dataclass Compilation`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0002_programmatic_build_time_dataclass_compilation.md)
@@ -76,6 +76,7 @@ All changes must pass Tier 2 Quality Gates:
     * [`ADR 0005: Composite Pre-Flight Endpoint and Header Contract Validation`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0005_composite_pre_flight_endpoint_and_header_contract_validation.md)
     * [`ADR 0006: Programmatic Driving Adapter Facade Definition`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0006_programmatic_driving_adapter_facade_definition.md)
     * [`ADR 0007: Consumer Build Pipeline and Parity Test Harness Patterns`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0007_consumer_build_pipeline_and_parity_test_harness_patterns.md)
+    * [`ADR 0008: Scope and Boundary Enforcement Mechanisms`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0008_scope_and_boundary_enforcement_mechanisms.md)
   * Software Design Documents: [`architecture/designs/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/designs/README.md)
   * Engineering Proposals: [`architecture/rfcs/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/rfcs/README.md)
   * Boundary Contracts: [`architecture/api/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/api/README.md)
