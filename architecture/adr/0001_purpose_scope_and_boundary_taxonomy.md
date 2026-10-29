@@ -127,16 +127,19 @@ graph TD
 
 To accommodate both direct 1:1 endpoints and nested 1:N polymorphic event streams in a uniform hierarchy, the registry indexing key is structured as a 4-tuple:
 
-```
+```text
 Registry Key: (namespace, endpoint, discriminator_field, discriminator_value)
 ```
 
 1. **Direct 1:1 Resolution (e.g. Frontier CAPI `/profile`):**
+
    ```python
    key = ("capi", "/profile", None, None)
    dataclass_type = registry.resolve(key)  # -> CapiProfilePayload
-```
+   ```
+
 2. **Root 1:N Resolution (e.g. EDDN `/upload/`):**
+
    ```python
    # Discriminator extracted from payload["$schemaRef"]
    key = (
@@ -146,8 +149,10 @@ Registry Key: (namespace, endpoint, discriminator_field, discriminator_value)
        "https://eddn.edcd.io/schemas/journal/1",
    )
    dataclass_type = registry.resolve(key)  # -> EDDNJournalPayload
-```
+   ```
+
 3. **Nested 1:N Resolution (e.g. Inara `/inapi/v1/`):**
+
    ```python
    # Envelope resolved via 1:1, nested event resolved via 1:N
    envelope_cls = registry.resolve(
@@ -156,7 +161,7 @@ Registry Key: (namespace, endpoint, discriminator_field, discriminator_value)
    event_data_cls = registry.resolve(
        ("inara", "/inapi/v1/", "eventName", "getCommanderProfile")
    )  # -> InaraProfileEventData
-```
+   ```
 
 #### Mapping All 4 Patterns to the Unified Key
 
@@ -178,7 +183,7 @@ Rather than maintaining separate registries per composition archetype, `ed-schem
 
 To prevent architectural degradation, `ed-schema` strictly enforces four architectural guardrails:
 
-```
+```text
                ┌─────────────────────────────────────────────────────────────┐
                │                     Developer Machine                       │
                │  Raw Samples / OpenAPI Spec / Human-Verified Input          │
