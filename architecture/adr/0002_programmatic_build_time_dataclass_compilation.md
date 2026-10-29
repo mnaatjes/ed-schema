@@ -73,46 +73,23 @@ Chosen Option: **Option 3: Programmatic Library Interactor (`SchemaEngine.compil
 ### 2. Hexagonal Port and Facade Architecture
 
 1. **Driving Facade (`SchemaEngine`):**
-   ```python
-   class SchemaEngine:
-       def __init__(self, container: Container | None = None) -> None:
-           self._container = container or Container()
-
-       def compile_models(
-           self,
-           schema_dir: str | Path,
-           output_dir: str | Path,
-           class_prefix: str = "",
-           base_class: str | None = None,
-       ) -> list[Path]:
-           """Compiles canonical JSON schemas into typed Python dataclasses in-process."""
-           use_case: GenerateDataclassesUseCase = self._container.resolve(
-               GenerateDataclassesUseCase
-           )
-           return use_case.execute(
-               schema_dir=Path(schema_dir),
-               output_dir=Path(output_dir),
-               class_prefix=class_prefix,
-               base_class=base_class,
-           )
-```
+   Exposed via `adapters/driving/facade.py` as codified in [ADR 0006](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0006_programmatic_driving_adapter_facade_definition.md). Downstream packages call `SchemaEngine.compile_models()` in-process without spawning external shell processes.
 
 2. **Driven SPI (`CodeGeneratorPort`):**
    Defined in `core/ports/driven/code_generator_port.py`, shielding the core from third-party compiler dependencies (`datamodel-code-generator` / `jinja2`).
 
-3. **Downstream Usage (`ed-connectors/scripts/compile_models.py`):**
+3. **Downstream Usage (`scripts/compile_models.py`):**
+   As formalized in [ADR 0007](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0007_consumer_build_pipeline_and_parity_test_harness_patterns.md), consuming repositories execute model compilation via a standardized script invoking `SchemaEngine`:
    ```python
-   # Simple in-process build script in consumer repository:
    from ed_schema import SchemaEngine
 
    engine = SchemaEngine()
-   for provider in ("capi", "eddn", "inara", "spansh"):
-       engine.compile_models(
-           schema_dir=f"src/ed_connectors/adapters/driven/providers/{provider}/schemas",
-           output_dir=f"src/ed_connectors/adapters/driven/providers/{provider}/models",
-           class_prefix=provider.capitalize(),
-       )
-```
+   engine.compile_models(
+       schema_dir="src/ed_connectors/providers/capi/schemas",
+       output_dir="src/ed_connectors/providers/capi/models",
+       class_prefix="Capi",
+   )
+   ```
 
 ---
 

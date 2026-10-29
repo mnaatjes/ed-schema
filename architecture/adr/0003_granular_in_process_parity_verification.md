@@ -65,53 +65,40 @@ Chosen Option: **Option 3: Programmatic In-Process Parity Interactor (`VerifyPar
 
 ### 2. Programmatic Facade Interface
 
+As codified in [ADR 0006](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0006_programmatic_driving_adapter_facade_definition.md), the `SchemaEngine` facade exposes in-process parity verification:
 ```python
-class SchemaEngine:
-    def verify_parity(
-        self,
-        schema_dir: str | Path,
-        models_dir: str | Path,
-        namespace: str | None = None,
-        class_prefix: str = "",
-    ) -> ParityReport:
-        """Compares on-disk models against compiled schema ASTs in-process.
+from ed_schema import SchemaEngine
 
-        Raises SchemaParityError if drift is detected.
-        """
-        use_case: VerifyParityUseCase = self._container.resolve(
-            VerifyParityUseCase
-        )
-        return use_case.execute(
-            schema_dir=Path(schema_dir),
-            models_dir=Path(models_dir),
-            namespace=namespace,
-            class_prefix=class_prefix,
-        )
+engine = SchemaEngine()
+report = engine.verify_parity(
+    schema_dir="src/ed_connectors/providers/capi/schemas",
+    models_dir="src/ed_connectors/providers/capi/models",
+    namespace="capi",
+    class_prefix="Capi",
+)
 ```
 
-### 3. Integration into Downstream Test Suites (`ed-connectors`)
+### 3. Integration into Downstream Test Suites (`test_schema_parity.py`)
 
+As formalized in [ADR 0007](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0007_consumer_build_pipeline_and_parity_test_harness_patterns.md), consuming repositories incorporate parity verification into `tests/architecture/test_schema_parity.py`:
 ```python
-# tests/architecture/test_schema_parity.py in ed-connectors:
 import pytest
 from ed_schema import SchemaEngine, SchemaParityError
 
 engine = SchemaEngine()
 
 
-@pytest.mark.parametrize("provider", ["capi", "eddn", "inara", "spansh"])
-def test_provider_models_in_parity_with_schemas(provider: str) -> None:
-    """Guarantees Python models on disk match canonical JSON schemas exactly."""
+def test_provider_models_in_parity_with_schemas():
     try:
         report = engine.verify_parity(
-            schema_dir=f"src/ed_connectors/adapters/driven/providers/{provider}/schemas",
-            models_dir=f"src/ed_connectors/adapters/driven/providers/{provider}/models",
-            namespace=provider,
-            class_prefix=provider.capitalize(),
+            schema_dir="src/ed_connectors/providers/capi/schemas",
+            models_dir="src/ed_connectors/providers/capi/models",
+            namespace="capi",
+            class_prefix="Capi",
         )
         assert report.is_synchronized
     except SchemaParityError as err:
-        pytest.fail(f"Schema drift detected in provider '{provider}': {err}")
+        pytest.fail(f"Schema drift detected:\n{err.diff_summary}")
 ```
 
 ---

@@ -74,6 +74,8 @@ All changes must pass Tier 2 Quality Gates:
     * [`ADR 0003: Granular In-Process Parity Verification`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0003_granular_in_process_parity_verification.md)
     * [`ADR 0004: DTO Naming Conventions and Lexical Scope Isolation`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0004_dto_naming_conventions_and_lexical_scope_isolation.md)
     * [`ADR 0005: Composite Pre-Flight Endpoint and Header Contract Validation`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0005_composite_pre_flight_endpoint_and_header_contract_validation.md)
+    * [`ADR 0006: Programmatic Driving Adapter Facade Definition`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0006_programmatic_driving_adapter_facade_definition.md)
+    * [`ADR 0007: Consumer Build Pipeline and Parity Test Harness Patterns`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0007_consumer_build_pipeline_and_parity_test_harness_patterns.md)
   * Software Design Documents: [`architecture/designs/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/designs/README.md)
   * Engineering Proposals: [`architecture/rfcs/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/rfcs/README.md)
   * Boundary Contracts: [`architecture/api/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/api/README.md)

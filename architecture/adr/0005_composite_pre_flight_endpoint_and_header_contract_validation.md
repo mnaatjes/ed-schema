@@ -162,6 +162,8 @@ class ValidateEndpointCallUseCase:
         )
 ```
 
+As codified in [ADR 0006](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0006_programmatic_driving_adapter_facade_definition.md), consumer applications invoke this use case directly via `SchemaEngine.validate_call(descriptor, headers, payload)`.
+
 ---
 
 ## Consequences
