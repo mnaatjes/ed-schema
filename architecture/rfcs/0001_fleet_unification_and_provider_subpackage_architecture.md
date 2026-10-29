@@ -1,6 +1,6 @@
 ---
 title: "RFC 0001: Fleet Unification via ed-connectors Microkernel and ed-schema Integration Pipeline"
-status: "Review"
+status: "Accepted"
 author: "Core Architecture Team"
 created_at: "2026-10-29"
 last_updated_at: "2026-10-29"
