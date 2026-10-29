@@ -23,3 +23,4 @@ SDDs adhere to IEEE 1016 / Google Design Doc conventions, specifying:
 ## Design Specifications Catalog
 
 - [`0001_scope_and_boundary_enforcement_architecture.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/designs/0001_scope_and_boundary_enforcement_architecture.md): SDD-001 Scope and Boundary Enforcement Architecture (implementation design for ADR 0008).
+- [`0002_core_domain_and_ports_architecture.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/designs/0002_core_domain_and_ports_architecture.md): SDD-002 Core Domain and Ports Architecture (implementation design for ADRs 0001–0008).

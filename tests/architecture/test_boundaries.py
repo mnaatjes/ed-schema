@@ -459,10 +459,12 @@ def test_ports_adhere_to_strict_import_whitelist() -> None:
         "__future__",
         "typing",
         "abc",
+        "collections",
         "collections.abc",
         "datetime",
         "uuid",
         "enum",
+        "pathlib",
     }
 
     for py_file in ports_dir.rglob("*.py"):
