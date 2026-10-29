@@ -291,25 +291,32 @@ graph TD
   The registry must isolate schemas into their designated namespaces (`"capi"`, `"eddn"`, `"inara"`, `"spansh"`), preventing schema ID collisions across targets.
 
 #### 2. Subpackage-Targeted Build-Time Code Generation
-* **Current ADR 0001 Baseline:** Single input directory `--schemas ./schemas` compiled to single output `--models ./src/...`.
-* **Expanded Requirement:** The `ed-schema` CLI must support batch multi-target generation targeting individual subpackage destinations:
-  ```bash
-  # Compile specific provider models:
-  ed-schema generate-models --schemas ./src/ed_connectors/adapters/driven/providers/inara/schemas \
-                            --output ./src/ed_connectors/adapters/driven/providers/inara/models \
-                            --base-class ed_schema.core.domain.BaseDTO
+* **Current ADR 0001 Baseline:** Single input directory compiled to single output directory.
+* **Expanded Requirement:** Because `ed-schema` is a **pure library package** (not a standalone CLI application), its programmatic driving facade (`SchemaEngine`) must expose in-process compilation methods that downstream developer scripts (`scripts/compile_models.py` in `ed-connectors`) can invoke directly:
+  ```python
+  from ed_schema import SchemaEngine
 
-  # Or batch compilation driven by a root connectors configuration:
-  ed-connectors-admin compile-all-schemas
+  engine = SchemaEngine()
+  # Programmatically compile dataclasses for a specific provider subpackage:
+  engine.compile_models(
+      schema_dir="src/ed_connectors/adapters/driven/providers/inara/schemas",
+      output_dir="src/ed_connectors/adapters/driven/providers/inara/models",
+      class_prefix="Inara",
+  )
 ```
 
 #### 3. Granular Namespace Parity Verification
-* **Current ADR 0001 Baseline:** All-or-nothing parity check across a repository.
-* **Expanded Requirement:** In a unified `ed-connectors` repository with 4+ providers, developers modifying only Inara need fast, targeted feedback. `ed-schema verify-parity` must accept an optional `--namespace` or `--path` filter:
-  ```bash
-  ed-schema verify-parity --namespace inara --schemas ... --models ...
+* **Current ADR 0001 Baseline:** All-or-nothing parity check across an entire repository.
+* **Expanded Requirement:** In a unified `ed-connectors` repository with multiple providers, developers modifying only Inara need fast, targeted feedback. `ed-schema`'s verification interactor must be callable directly within test runners (e.g. `pytest tests/architecture/test_parity.py`) with granular namespace filtering:
+  ```python
+  # Executed directly inside pytest or scripts/verify.py:
+  engine.verify_parity(
+      namespace="inara",
+      schema_dir="src/ed_connectors/adapters/driven/providers/inara/schemas",
+      models_dir="src/ed_connectors/adapters/driven/providers/inara/models",
+  )
 ```
-  This allows pre-commit hooks to selectively verify only the provider directory modified in a git commit.
+  This allows tests and local quality gates to selectively verify only the provider subpackage modified in a git commit without spawning external shell processes.
 
 #### 4. DTO Naming & Type Collision Prevention
 * **Current ADR 0001 Baseline:** Direct translation of schema titles into Python class names (e.g. `title: "Profile"` $\rightarrow$ `class Profile:`).

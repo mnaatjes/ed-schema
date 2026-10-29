@@ -218,7 +218,7 @@ To prevent architectural degradation, `ed-schema` strictly enforces four archite
 
 #### Anti-Pattern B: Runtime Dynamic Code Generation
 * **The Hazard:** Using `eval()`, `exec()`, or dynamic `type()` instantiation to build Python dataclasses in memory at runtime. This destroys static type analysis (`mypy`), removes IDE autocomplete, degrades application startup performance, and introduces severe debugging hurdles.
-* **Guardrail:** Model generation is exclusively a **build-time / pre-commit step** (e.g. `ed-schema generate-models --schemas ... --output ...`). All generated dataclasses are written directly to disk as standard `.py` source files and committed to version control. Downstream code imports these classes natively.
+* **Guardrail:** Model generation is exclusively a **build-time / pre-commit step** executed programmatically via `SchemaEngine.compile_models()` (e.g. called from a repository's `scripts/compile_models.py`). All generated dataclasses are written directly to disk as standard `.py` source files and committed to version control. Downstream code imports these classes natively.
 
 #### Anti-Pattern C: Creeping Domain Logic into the Schema Registry
 * **The Hazard:** Introducing domain-specific convenience methods into the registry (e.g., `registry.get_inara_ship_schema()` or `registry.validate_eddn_commodity()`).
@@ -234,17 +234,18 @@ To prevent architectural degradation, `ed-schema` strictly enforces four archite
 
 #### Anti-Pattern D: Schema Drift & Out-of-Sync Models
 * **The Hazard:** An engineer modifies a `.json` schema file in git but neglects to regenerate the corresponding Python dataclass file (or modifies the dataclass directly), causing silent desynchronization between serialization code and wire contracts.
-* **Guardrail:** Automated CI gate and CLI verification tool:
-  ```bash
-  ed-schema verify-parity --schemas ./schemas --models ./src/domain/models
+* **Guardrail:** Automated in-process parity verification executed in local quality gates and CI test suites:
+  ```python
+  # Executed in tests/architecture/test_schema_parity.py:
+  engine.verify_parity(schemas_dir="./schemas", models_dir="./src/domain/models")
   ```
-  The verification command regenerates dataclasses into an ephemeral memory buffer and performs AST equivalence comparison against disk. If discrepancies exist, pre-commit and CI pipelines fail immediately.
+  The verification method regenerates dataclasses into an ephemeral memory buffer and performs AST equivalence comparison against disk. If discrepancies exist, local gates and CI fail immediately.
 
 ---
 
 ### 4. Layered Hexagonal Architecture of `ed-schema`
 
-Following the hexagonal pattern, `ed-schema` structures its boundaries as follows:
+Following the hexagonal pattern, `ed-schema` structures its boundaries as a **pure library package** (not a standalone application or CLI daemon):
 
 1. **Core Domain (`src/ed_schema/core/domain/`):**
    - Primitive schema entities: `SchemaDescriptor`, `SchemaDefinition`, `DiscriminatorRule`, `ValidationResult`.
@@ -259,14 +260,14 @@ Following the hexagonal pattern, `ed-schema` structures its boundaries as follow
    - `GenerateDataclassesUseCase`: Orchestrates code generation from stored schemas to target disk paths.
    - `VerifyParityUseCase`: Compares stored schemas against generated code for AST drift.
 4. **Adapters (`src/ed_schema/adapters/`):**
-   - **Driving Adapters:** CLI command suite (`ed_schema.adapters.driving.cli`) providing `generate`, `validate`, `infer`, and `verify-parity` commands. Programmatic client facade (`SchemaEngine`).
+   - **Driving Adapters:** Programmatic client facades and interactors (`SchemaEngine`) imported directly by consumer packages. Optional lightweight developer CLI wrapper for manual testing.
    - **Driven Adapters:**
      - `validator/`: `jsonschema` / `fastjsonschema` validation adapter.
      - `codegen/`: `datamodel-code-generator` AST compiler adapter.
      - `inference/`: `genson` schema inference engine adapter.
      - `storage/`: Filesystem schema storage adapter loading `.json` files from directory hierarchies.
 5. **Bootstrap (`src/ed_schema/bootstrap/`):**
-   - Dependency injection container wiring ports to concrete adapters.
+   - Dependency injection container (`create_schema_engine`) wiring ports to concrete adapters.
 
 ---
 
@@ -275,12 +276,12 @@ Following the hexagonal pattern, `ed-schema` structures its boundaries as follow
 ### Positive Consequences
 * **Deterministic Contract Enforcement:** Fleet-wide confidence that wire payloads strictly conform to standardized JSON Schema standards.
 * **Zero Duplication:** Shared, robust schema ingestion, validation, and generation tooling maintained in one place.
-* **Clean Downstream Packages:** `ed-capi`, `ed-eddn`, and `ed-inara` remain lightweight and modular, containing only their respective schemas and domain logic.
+* **Clean Downstream Packages:** `ed-connectors` remains lightweight and modular, containing only schemas, manifests, and generated DTOs.
 * **Full Static Typing:** Generated Python dataclasses enable complete MyPy verification, auto-completion, and static validation without runtime performance penalties.
-* **Guaranteed Parity:** CI verification ensures schemas and Python dataclasses never diverge.
+* **In-Process Execution:** As a pure library, `ed-schema` operates entirely within the caller's Python interpreter with zero external CLI subprocess overhead.
 
 ### Negative Consequences & Mitigations
-* **Additional Build Step:** Adding or updating an API schema requires running a code generation command.
-  * *Mitigation:* Bundled into a single CLI tool (`ed-schema generate`) and enforced via pre-commit hooks and CI parity checks.
+* **Additional Build Step:** Adding or updating an API schema requires running a code compilation script.
+  * *Mitigation:* Script wrapped into repository quality gates (`scripts/verify.py` or `pytest`) via `SchemaEngine.verify_parity()`.
 * **Dependency on Schema Codegen Tools:** Tooling depends on `datamodel-code-generator` and `genson`.
-  * *Mitigation:* Codegen dependencies can be packaged as optional extras or development dependencies so runtime consumers do not carry unused heavy compiler dependencies.
+  * *Mitigation:* Codegen dependencies can be packaged as optional extras or development dependencies so runtime consumers do not carry unused compiler dependencies.
