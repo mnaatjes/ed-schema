@@ -66,8 +66,8 @@ All changes must pass Tier 2 Quality Gates:
 * **Governing Template:** [python-hexagonal-template](https://github.com/mnaatjes/python-hexagonal-template.git)
 * **Unified Process Documentation:**
   * Master Architectural Governance Root: [`architecture/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/README.md)
-  * Master Risk Register: [`architecture/risk/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/README.md)
-  * Use-Case Specifications: [`architecture/use-cases/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/use-cases/README.md)
+  * Master Risk Register: [`architecture/risk/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/README.md) ([`risk-list.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/risk-list.md))
+  * Use-Case Specifications: [`architecture/use-cases/README.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/use-cases/README.md) (`UC-01`, `UC-02`, `UC-03`, `UC-04`)
   * Architectural Decision Records:
     * [`ADR 0001: Multi-Namespace Manifest Loading and Composite Schema Registry`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0001_multi_namespace_manifest_loading_and_composite_schema_registry.md)
     * [`ADR 0002: Programmatic Build-Time Dataclass Compilation`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0002_programmatic_build_time_dataclass_compilation.md)
