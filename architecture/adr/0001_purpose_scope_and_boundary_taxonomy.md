@@ -92,7 +92,7 @@ graph TD
         subgraph P3 ["Pattern 3: 1:N Nested Batch-Item RPC Discriminator"]
             direction TB
             EP4["Endpoint: /inapi/v1/"] -->|Top-Level Envelope| S6["Schema: InaraEnvelope"]
-            S6 -->|events[] array| D2{"events[*].eventName"}
+            S6 -->|"events array"| D2{"eventName"}
             D2 -->|getCommanderProfile| S7["Schema: InaraProfileEventData"]
             D2 -->|setCommanderShip| S8["Schema: InaraSetShipEventData"]
             D2 -->|addCommanderCombatKill| S9["Schema: InaraCombatKillEventData"]
