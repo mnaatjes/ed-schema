@@ -21,3 +21,6 @@ dist/
 # IDEs
 .vscode/
 .idea/
+
+# Local cache & Wine prefixes
+.cache/

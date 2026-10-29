@@ -53,3 +53,17 @@ source_modules =
     ed_schema.adapters
 forbidden_modules =
     ed_schema.bootstrap
+
+[importlinter:contract:external_fleet_and_network_isolation]
+name = external_fleet_and_network_isolation
+type = forbidden
+source_modules =
+    ed_schema
+forbidden_modules =
+    ed_models
+    ed_transport
+    requests
+    httpx
+    aiohttp
+    urllib
+    subprocess
