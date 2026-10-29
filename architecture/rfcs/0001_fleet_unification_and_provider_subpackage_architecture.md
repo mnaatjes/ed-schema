@@ -199,20 +199,69 @@ $$\text{ed-connectors v1.2.6} \equiv \begin{cases}
 2. **Offline & Intermittent Connectivity:** Schemas and models reside locally on disk; steam deck / offline devices can spool, validate, and queue payloads via `ed-transport` without remote internet access.
 3. **Historical Journal Replays:** Replaying historical logs from previous game versions simply requires instantiating an earlier tagged release of `ed-connectors`.
 
-### 3.6 Realtime Runtime Event Delegation
+### 3.6 Realtime Runtime Event Delegation & Boundary Invariant
 
-Co-locating schemas does not mandate unconditional execution. The consumer application (`ed-telemetry`) remains in total control of dispatch policies based on user preferences and gameplay state:
+A fundamental architectural boundary governs this design:
+
+> **Core Boundary Assertion:** `ed-connectors` is an **execution client** (governing *how* to communicate with APIs), not a **policy engine** (governing *when* or *why* to communicate).
+
+Embedding event trigger rules, filtering conditions, or game state evaluations within `ed-connectors` would violate the Single Responsibility Principle and destroy its business-logic ignorance. Co-locating schemas and DTOs within provider subpackages does not dictate unconditional dispatch; the caller application (`ed-telemetry` or custom downstream SDK tools) retains exclusive ownership over triggers, user preferences, and dispatch conditions.
+
+```mermaid
+graph TD
+    subgraph Trigger_Pipeline ["Dispatch Delegation & Policy Boundary"]
+        direction TB
+
+        subgraph Layer1 ["Layer 1: Telemetry & Event Source (ed-telemetry)"]
+            JRN["Journal / Status Files / CAPI Monitor"] -->|Emits Game Event| EVT["Event Stream: ('Scan', 'FSDJump', 'Docked')"]
+        end
+
+        subgraph Layer2 ["Layer 2: Event Policy & Trigger Engine (Caller / SDK App)"]
+            direction TB
+            EVT --> ROUTER["EventRouter & Predicate Matcher"]
+            ROUTER --> COND{"User Opt-in & Event Predicates?<br>(e.g. ScanType == 'Detailed' && !Discovered)"}
+            COND -->|Condition Met| MAP["Transform Game Entity -> Target Wire DTO"]
+            COND -->|Condition Not Met| DROP["Drop / Skip Dispatch"]
+        end
+
+        subgraph Layer3 ["Layer 3: Execution Client (ed-connectors)"]
+            direction TB
+            MAP --> EXEC["connector.eddn.publish_scan(scan_dto)"]
+            EXEC --> VLD["ed-schema Contract Validation"]
+            VLD --> TX["ed-transport Resilient Wire Dispatch"]
+        end
+    end
+```
+
+#### Extensibility for SDK Developers and End-Users
+
+To allow SDK developers and end-user applications (such as community bots, specialized exploration tools, or fleet management dashboards) to assert arbitrary custom triggers and conditions, consumer applications configure declarative routing rules:
 
 ```python
-# Realtime delegation in ed-telemetry:
-def on_game_event(event_type: str, journal_entry: dict[str, Any]) -> None:
-    # 1. Evaluate user preferences and runtime state
-    if user_config.is_enabled("inara") and event_type in INARA_EVENTS:
-        connectors.inara.dispatch_event(event_type, journal_entry)
+# Event routing declared in caller application / SDK tool:
+router = EventRouter(connectors=connectors)
 
-    if user_config.is_enabled("eddn") and event_type in EDDN_EVENTS:
-        connectors.eddn.publish_message(event_type, journal_entry)
+# SDK developer registers custom condition for relaying stellar data to EDDN:
+router.register_route(
+    source_event="Scan",
+    target_provider="eddn",
+    condition=lambda event: event.get("ScanType") in ("Detailed", "AutoScan")
+    and not event.get("WasDiscovered", False)
+    and user_config.opt_in_eddn,
+    transformer=transform_scan_to_eddn_dto,
+)
+
+# Inara synchronization triggered on docking at non-carrier starports:
+router.register_route(
+    source_event="Docked",
+    target_provider="inara",
+    condition=lambda event: user_config.inara_sync_enabled
+    and event.get("StationType") != "FleetCarrier",
+    transformer=transform_docked_to_inara_dto,
+)
 ```
+
+By enforcing this strict separation, `ed-connectors` remains a pure, stateless execution mechanism that any caller application or orchestration engine can drive under custom gameplay conditions.
 
 ---
 
