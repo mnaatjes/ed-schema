@@ -158,6 +158,20 @@ Registry Key: (namespace, endpoint, discriminator_field, discriminator_value)
    )  # -> InaraProfileEventData
 ```
 
+#### Mapping All 4 Patterns to the Unified Key
+
+Rather than maintaining separate registries per composition archetype, `ed-schema` unifies all patterns through a single composite key where missing discriminator fields represent the degenerate 1:1 case:
+
+| Pattern | Example Target | `namespace` | `endpoint` | `discriminator_field` | `discriminator_value` | Target Schema / Dataclass |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **P1: 1:1 Direct REST** | Frontier CAPI Profile | `"capi"` | `"/profile"` | `None` | `None` | `CapiProfilePayload` |
+| **P2: 1:N Root Discriminator** | EDDN Journal | `"eddn"` | `"/upload/"` | `"$schemaRef"` | `"journal/1"` | `EDDNJournalPayload` |
+| **P2: 1:N Root Discriminator** | EDDN Commodity | `"eddn"` | `"/upload/"` | `"$schemaRef"` | `"commodity/3"` | `EDDNCommodityPayload` |
+| **P3: 1:N Batch RPC Envelope** | Inara Envelope | `"inara"` | `"/inapi/v1/"` | `None` | `None` | `InaraEnvelope` |
+| **P3: 1:N Batch RPC Sub-Event** | Inara Profile Event | `"inara"` | `"/inapi/v1/"` | `"eventName"` | `"getCommanderProfile"` | `InaraProfileEventData` |
+| **P3: 1:N Batch RPC Sub-Event** | Inara Set Ship Event | `"inara"` | `"/inapi/v1/"` | `"eventName"` | `"setCommanderShip"` | `InaraSetShipEventData` |
+| **P4: 1:1 Parameterized REST** | Spansh Systems | `"spansh"` | `"/api/systems"` | `None` | `None` | `SpanshSystemsResponse` |
+
 ---
 
 ### 3. Critical Architectural Anti-Patterns & Guardrails
