@@ -3,7 +3,7 @@
 ## 1. Project Overview & Architecture
 `ed-schema` is a pure Hexagonal Architecture (Ports and Adapters) contract, schema governance, and code-generation engine for the *Elite Dangerous* software fleet, supporting Linux (Steam / Proton / Steam Deck) and native Windows NT.
 
-It acts as the shared architectural foundation for contract management across `ed-capi`, `ed-eddn`, `ed-inara`, and `ed-connectors`, handling:
+It acts as the shared architectural foundation for contract management across `ed-connectors` (unifying provider subpackages `capi`, `eddn`, `inara`, `spansh` under RFC 0001) and downstream consumers, handling:
 * **Standard JSON Schema Baseline:** Ingestion, storage, and validation of Draft-07 and Draft 2020-12 JSON Schemas.
 * **Universal API Composition Registry:** Indexing 1:1 direct REST endpoints, 1:N root-level polymorphic discriminators (EDDN `$schemaRef`), and 1:N nested batch-item RPC discriminators (Inara `events[*].eventName`) through a single unified composite key `(namespace, endpoint, discriminator_field, discriminator_value)`.
 * **Abstract HTTP Header Contract Modeling:** Declaring, validating, and generating typed DTOs for case-insensitive HTTP headers across static protocol, injected auth, and dynamic operational categories.

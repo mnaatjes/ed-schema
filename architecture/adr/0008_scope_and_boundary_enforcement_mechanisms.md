@@ -13,7 +13,7 @@ Accepted
 
 ## Context
 
-`ed-schema` serves as the foundational contract governance, schema validation, and build-time code generation engine for the *Elite Dangerous* telemetry fleet (`ed-capi`, `ed-eddn`, `ed-inara`, and `ed-connectors`). The Master Risk Register ([`risk-list.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/risk-list.md)) identifies critical technical risks, including schema drift (`RISK-01`), namespace collisions (`RISK-02`), dynamic runtime code generation (`RISK-03`), domain logic leakage (`RISK-04`), network I/O boundary contamination (`RISK-05`), and cross-platform divergence (`RISK-08`).
+`ed-schema` serves as the foundational contract governance, schema validation, and build-time code generation engine for the *Elite Dangerous* telemetry fleet, directly powering `ed-connectors` (unifying provider subpackages `capi`, `eddn`, `inara`, `spansh` under [RFC 0001](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/rfcs/0001_fleet_unification_and_provider_subpackage_architecture.md)) and consumer applications. The Master Risk Register ([`risk-list.md`](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/risk/risk-list.md)) identifies critical technical risks, including schema drift (`RISK-01`), namespace collisions (`RISK-02`), dynamic runtime code generation (`RISK-03`), domain logic leakage (`RISK-04`), network I/O boundary contamination (`RISK-05`), and cross-platform divergence (`RISK-08`).
 
 Without rigid boundary definitions and automated, multi-tiered enforcement mechanisms, schema management libraries routinely degenerate into monolithic packages that conflate game-specific domain models, network transport protocols, secret credential management, and runtime evaluation hacks.
 
@@ -116,7 +116,7 @@ Executes across a matrix of operating systems (Ubuntu POSIX and Windows NT nativ
 * **Deterministic Contract Integrity:** Zero risk of untested schema drift or runtime dynamic evaluation regressions.
 * **Hermetic Boundary Isolation:** The domain core remains completely decoupled from external networking, game logic, and database systems.
 * **Fast Feedback Loop:** Developers receive instant mechanical enforcement locally before code leaves their workstation.
-* **Universal Reusability:** Downstream packages (`ed-capi`, `ed-eddn`, `ed-inara`, `ed-connectors`) can rely unconditionally on static dataclasses and in-process validation without network dependencies.
+* **Universal Reusability:** Downstream integration clients (`ed-connectors` and consuming telemetry applications) can rely unconditionally on static dataclasses and in-process validation without network dependencies.
 
 ### Negative / Trade-Offs
 * **Build-Time Overhead:** Build-time generation and AST parity checks introduce additional milliseconds to verification pipelines.
