@@ -263,6 +263,72 @@ router.register_route(
 
 By enforcing this strict separation, `ed-connectors` remains a pure, stateless execution mechanism that any caller application or orchestration engine can drive under custom gameplay conditions.
 
+### 3.7 Implications for `ed-schema` Design Plans (ADR 0001 & ADR 0002)
+
+If this RFC is accepted, `ed-schema` shifts from serving multiple decoupled client repositories to serving as the foundational contract compiler and runtime registry powering `ed-connectors`'s unified provider pipeline. While the core tenets of [ADR 0001](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0001_purpose_scope_and_boundary_taxonomy.md) (4-tuple indexing, build-time codegen, business-logic ignorance) and [ADR 0002](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0002_abstract_http_header_modeling_and_contract_organization.md) (3-tier header categories, pre-flight validation) remain validated, `ed-schema` must expand its feature scope to support five concrete capabilities:
+
+```mermaid
+graph TD
+    subgraph EDSchema_Expanded_Capabilities ["ed-schema Capabilities Supporting Unified ed-connectors"]
+        direction TB
+
+        C1["1. Multi-Namespace Manifest Loader<br>(Batch load all provider subpackages)"]
+        C2["2. Subpackage Scoped Code Generation<br>(Output to specific provider model dirs)"]
+        C3["3. Granular Namespace Parity Verification<br>(Verify single provider or entire suite)"]
+        C4["4. DTO Naming & Namespace Isolation<br>(Prevent cross-provider class collisions)"]
+        C5["5. Composite Pre-Flight Validation Interactor<br>(Validate headers + payload in one call)"]
+    end
+```
+
+#### 1. Multi-Namespace Directory Ingestion & Manifest Loading
+* **Current ADR 0001 Baseline:** Registry assumes ingestion of schemas for an individual repository context.
+* **Expanded Requirement:** `ed-schema`'s storage adapter (`FileSystemSchemaStorageAdapter`) must support scanning and loading multiple independent provider directories dynamically:
+  ```python
+  registry.load_from_manifests(
+      [CapiProviderManifest, EddnProviderManifest, InaraProviderManifest]
+  )
+```
+  The registry must isolate schemas into their designated namespaces (`"capi"`, `"eddn"`, `"inara"`, `"spansh"`), preventing schema ID collisions across targets.
+
+#### 2. Subpackage-Targeted Build-Time Code Generation
+* **Current ADR 0001 Baseline:** Single input directory `--schemas ./schemas` compiled to single output `--models ./src/...`.
+* **Expanded Requirement:** The `ed-schema` CLI must support batch multi-target generation targeting individual subpackage destinations:
+  ```bash
+  # Compile specific provider models:
+  ed-schema generate-models --schemas ./src/ed_connectors/adapters/driven/providers/inara/schemas \
+                            --output ./src/ed_connectors/adapters/driven/providers/inara/models \
+                            --base-class ed_schema.core.domain.BaseDTO
+
+  # Or batch compilation driven by a root connectors configuration:
+  ed-connectors-admin compile-all-schemas
+```
+
+#### 3. Granular Namespace Parity Verification
+* **Current ADR 0001 Baseline:** All-or-nothing parity check across a repository.
+* **Expanded Requirement:** In a unified `ed-connectors` repository with 4+ providers, developers modifying only Inara need fast, targeted feedback. `ed-schema verify-parity` must accept an optional `--namespace` or `--path` filter:
+  ```bash
+  ed-schema verify-parity --namespace inara --schemas ... --models ...
+```
+  This allows pre-commit hooks to selectively verify only the provider directory modified in a git commit.
+
+#### 4. DTO Naming & Type Collision Prevention
+* **Current ADR 0001 Baseline:** Direct translation of schema titles into Python class names (e.g. `title: "Profile"` $\rightarrow$ `class Profile:`).
+* **Expanded Requirement:** In a unified repository, multiple providers expose similar concept schemas (`capi/profile.json` vs `inara/profile.json`). `ed-schema`'s code generator adapter must enforce deterministic class prefixing or namespace scoping (e.g., `CapiProfileDTO` vs `InaraProfileDTO`) to avoid global class namespace pollution.
+
+#### 5. Unified Pre-Flight Validation Interactor
+* **Current ADR 0002 Baseline:** Independent validation for headers (`validate_headers`) and payloads (`validate_payload`).
+* **Expanded Requirement:** To streamline `ed-connectors`'s `dispatch()` pipeline, `ed-schema` must provide a composite validation interactor:
+  ```python
+  class ValidateEndpointCallUseCase:
+      def execute(
+          self,
+          descriptor: SchemaDescriptor,
+          headers: dict[str, str],
+          payload: dict[str, Any] | None,
+      ) -> ValidationResult: ...
+```
+  This validates both header parameter constraints (regex, required keys) and payload body schemas in a single pre-flight step before `ed-transport` opens a socket.
+
 ---
 
 ## 4. Drawbacks & Risks
