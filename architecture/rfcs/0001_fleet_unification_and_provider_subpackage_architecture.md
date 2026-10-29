@@ -1,0 +1,368 @@
+---
+title: "RFC 0001: Fleet Unification via ed-connectors Microkernel and ed-schema Integration Pipeline"
+status: "Accepted"
+author: "Core Architecture Team"
+created_at: "2026-10-29"
+last_updated_at: "2026-10-29"
+tags: ["rfc", "architecture", "ed-connectors", "unification", "hexagonal", "providers"]
+---
+
+# RFC 0001: Fleet Unification via ed-connectors Microkernel and ed-schema Integration Pipeline
+
+## 1. Summary
+
+This RFC proposes unifying the planned bespoke Elite Dangerous integration client packages (`ed-capi`, `ed-eddn`, `ed-inara`) into a single, cohesive integration library: **`ed-connectors`**.
+
+By leveraging the foundational abstractions established in **`ed-transport`** (resilient HTTP wire dispatch, token buckets, and jittered retries) and **`ed-schema`** (canonical JSON Schema management, 4-tuple composite key indexing, abstract HTTP header modeling, and build-time Python dataclass compilation), individual API client implementations are reduced to lightweight, declarative configuration manifests and schema definitions. `ed-connectors` adopts a **Microkernel / Plugin Architecture** utilizing **Subpackage Namespacing** (`ed_connectors.providers.<target>`) and co-located schema packaging to deliver modularity, version-locked compatibility, and dynamic runtime event delegation with minimal repository overhead.
+
+---
+
+## 2. Motivation
+
+### 2.1 The Historical Context
+Initial fleet planning called for independent client packages (`ed-capi`, `ed-eddn`, `ed-inara`, `ed-connectors`) to isolate distinct API architectures:
+- **Frontier CAPI:** Stateful AWS reverse proxy, session cookies, OAuth Bearer tokens, 1:1 REST endpoints.
+- **EDDN Gateway:** Public ZeroMQ and HTTP upload relays, polymorphic payloads routed dynamically via root-level `$schemaRef` URIs.
+- **Inara API:** RPC-style batch dispatch at `/inapi/v1/`, body envelope authentication, polymorphic sub-events discriminated by `events[*].eventName`.
+- **Spansh / EDSM:** Parameterized REST queries, custom rate limits, and diverse payload shapes.
+
+### 2.2 The Foundational Shift
+With `ed-transport` and `ed-schema` implemented:
+1. **Transport Complexity is Absorbed:** Network dispatch, retry policies, token-bucket/sliding-window rate limiting, and chunked SSE stream mechanics are fully handled by `ed-transport`.
+2. **Contract & Schema Complexity is Absorbed:** Validation, AST inspection, 1:1 vs 1:N discriminator mapping, abstract header contracts, and build-time dataclass generation are fully handled by `ed-schema`.
+
+Maintaining 4 to 5 separate repositories, CI workflows, release cycles, and dependency chains solely to house static schema files and basic client wrappers introduces severe developer fatigue, multi-package dependency divergence, and high operational overhead.
+
+---
+
+## 3. Detailed Specification
+
+### 3.1 Architectural Foundation: Microkernel & Plugin Pattern
+
+`ed-connectors` is structured as a **Microkernel** providing a central `ConnectorRegistry` and host engine. Each API target (CAPI, EDDN, Inara, Spansh) is implemented as a self-contained provider plugin adhering to an SPI (`BaseProviderAdapter`) and declared via an immutable `ProviderManifest`.
+
+```mermaid
+graph TD
+    subgraph Fleet_Architecture ["Fleet Architecture with ed-connectors"]
+        direction TB
+
+        subgraph Client_App ["Consumer Application (e.g. ed-telemetry)"]
+            APP["Application Engine / Event Listener"]
+            ROUTER["Runtime Dispatch & Delegation Router"]
+            APP --> ROUTER
+        end
+
+        subgraph ED_Connectors ["ed-connectors Library"]
+            direction TB
+            REG["ConnectorRegistry & Host Engine"]
+            ROUTER -->|Dynamic Call Delegation| REG
+
+            subgraph Providers ["Subpackage Namespacing (ed_connectors.providers.*)"]
+                direction LR
+                P_CAPI["capi/<br>• Manifest<br>• Schemas<br>• Models"]
+                P_EDDN["eddn/<br>• Manifest<br>• Schemas<br>• Models"]
+                P_INARA["inara/<br>• Manifest<br>• Schemas<br>• Models"]
+                P_SPANSH["spansh/<br>• Manifest<br>• Schemas<br>• Models"]
+            end
+
+            REG --> P_CAPI
+            REG --> P_EDDN
+            REG --> P_INARA
+            REG --> P_SPANSH
+        end
+
+        subgraph Shared_Foundations ["Foundational Engines"]
+            direction LR
+            TRANSPORT["ed-transport<br>(Resilience, Retries, Dispatch)"]
+            SCHEMA["ed-schema<br>(Validation, Registries, DTOs)"]
+        end
+
+        P_CAPI --> TRANSPORT
+        P_CAPI --> SCHEMA
+        P_EDDN --> TRANSPORT
+        P_EDDN --> SCHEMA
+        P_INARA --> TRANSPORT
+        P_INARA --> SCHEMA
+        P_SPANSH --> TRANSPORT
+        P_SPANSH --> SCHEMA
+    end
+```
+
+### 3.2 Pluggable Target Pipeline: The Provider Manifest
+
+Adding or removing an API target behaves like adding an item to a shopping cart or a user to an auth realm. Every provider is defined by an immutable `ProviderManifest`:
+
+```python
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+from ed_schema.core.domain.contract import EndpointContract
+from ed_transport.core.domain.retry import RetryPolicy
+from ed_transport.core.domain.rate_limit import RateLimitRule
+
+
+@dataclass(frozen=True)
+class ProviderManifest:
+    """Standardized metadata and operational parameters for a remote API target."""
+
+    name: str  # Unique provider namespace, e.g. "inara", "eddn", "capi"
+    base_url: str  # Root URL, e.g. "https://inara.cz"
+    rate_limit: RateLimitRule  # Destination rate limiting policy
+    retry_policy: RetryPolicy  # Exponential backoff and jitter configuration
+    auth_strategy: str  # e.g., "header_bearer", "body_envelope", "none"
+    schema_dir: Path  # Co-located filesystem directory with JSON schemas
+    endpoints: tuple[EndpointContract, ...]  # ed-schema endpoint contracts
+```
+
+### 3.3 Subpackage Namespacing & Directory Topology
+
+To ensure modularity and eliminate blast radius between providers within the single repository, `ed-connectors` organizes providers into dedicated, isolated subpackages conforming to `python-hexagonal-template`:
+
+```text
+ed-connectors/
+├── .importlinter                               # Enforces zero cross-provider leakage
+├── pyproject.toml
+├── scripts/
+│   └── verify.py                              # Tier 2 Quality Gates
+├── src/
+│   └── ed_connectors/
+│       ├── __init__.py
+│       ├── core/                              # PURE DOMAIN & PORTS
+│       │   ├── domain/
+│       │   │   ├── manifest.py                # ProviderManifest DTO
+│       │   │   └── registry.py                # In-memory ProviderRegistry
+│       │   ├── ports/
+│       │   │   ├── driving/
+│       │   │   │   └── connector_port.py      # ConnectorClientPort
+│       │   │   └── driven/
+│       │   │       └── provider_spi.py        # BaseProviderAdapter
+│       │   └── use_cases/
+│       │       ├── dispatch_provider_call.py
+│       │       └── register_provider.py
+│       ├── adapters/                          # ADAPTERS
+│       │   ├── driving/                       # Top-level facade
+│       │   │   └── client.py                  # ConnectorClient
+│       │   └── driven/
+│       │       └── providers/                 # Subpackage Namespace Per Target
+│       │           ├── __init__.py
+│       │           ├── capi/                  # 100% self-contained provider
+│       │           │   ├── __init__.py
+│       │           │   ├── adapter.py         # Implements BaseProviderAdapter
+│       │           │   ├── manifest.py        # Endpoint contracts & rate limits
+│       │           │   ├── schemas/           # Co-located JSON schemas
+│       │           │   │   ├── profile.json
+│       │           │   │   └── market.json
+│       │           │   └── models/            # Dataclasses compiled by ed-schema
+│       │           │       └── profile.py
+│       │           ├── eddn/                  # 100% self-contained provider
+│       │           │   ├── __init__.py
+│       │           │   ├── adapter.py
+│       │           │   ├── manifest.py
+│       │           │   ├── schemas/
+│       │           │   └── models/
+│       │           └── inara/                 # 100% self-contained provider
+│       │               ├── __init__.py
+│       │               ├── adapter.py
+│       │               ├── manifest.py
+│       │               ├── schemas/
+│       │               └── models/
+│       └── bootstrap/                         # Composition Root
+│           └── container.py                   # Wires ed-transport, ed-schema, & providers
+└── tests/
+    ├── architecture/
+    │   └── test_boundaries.py                 # Asserts providers NEVER import each other
+    └── providers/
+        ├── test_capi.py
+        ├── test_eddn.py
+        └── test_inara.py
+```
+
+### 3.4 Boundary & Import Enforcement
+
+Using `.importlinter` and `pytest-archon`, strict contracts prevent cross-provider contamination:
+* `ed_connectors.adapters.driven.providers.capi` is **forbidden** from importing anything from `ed_connectors.adapters.driven.providers.inara` or `...providers.eddn`.
+* `ed_connectors.core` has **zero** knowledge of specific providers.
+* Adding a bug to the CAPI parser has zero AST or runtime impact on EDDN or Inara.
+
+### 3.5 Co-Location of Schemas & Deterministic Versioned Coupling
+
+Schemas and generated models are co-located directly inside provider subpackages and distributed as package data in the released wheel:
+
+$$\text{ed-connectors v1.2.6} \equiv \begin{cases}
+\text{Frontier CAPI}: & \text{Update 18.04 REST Contracts} \\
+\text{EDDN}: & \text{v1.0 (Journal-v1, Commodity-v3, Shipyard-v2)} \\
+\text{Inara}: & \text{InAPI v1.0 (Profile, SetShip, CombatKill)} \\
+\text{Spansh}: & \text{API v1.2.0 Systems Dump}
+\end{cases}$$
+
+1. **Deterministic Versioned Coupling:** Downstream consumers (`ed-telemetry`) pin a single dependency (`ed-connectors == 1.2.6`), eliminating multi-package dependency resolution conflicts.
+2. **Offline & Intermittent Connectivity:** Schemas and models reside locally on disk; steam deck / offline devices can spool, validate, and queue payloads via `ed-transport` without remote internet access.
+3. **Historical Journal Replays:** Replaying historical logs from previous game versions simply requires instantiating an earlier tagged release of `ed-connectors`.
+
+### 3.6 Realtime Runtime Event Delegation & Boundary Invariant
+
+A fundamental architectural boundary governs this design:
+
+> **Core Boundary Assertion:** `ed-connectors` is an **execution client** (governing *how* to communicate with APIs), not a **policy engine** (governing *when* or *why* to communicate).
+
+Embedding event trigger rules, filtering conditions, or game state evaluations within `ed-connectors` would violate the Single Responsibility Principle and destroy its business-logic ignorance. Co-locating schemas and DTOs within provider subpackages does not dictate unconditional dispatch; the caller application (`ed-telemetry` or custom downstream SDK tools) retains exclusive ownership over triggers, user preferences, and dispatch conditions.
+
+```mermaid
+graph TD
+    subgraph Trigger_Pipeline ["Dispatch Delegation & Policy Boundary"]
+        direction TB
+
+        subgraph Layer1 ["Layer 1: Telemetry & Event Source (ed-telemetry)"]
+            JRN["Journal / Status Files / CAPI Monitor"] -->|Emits Game Event| EVT["Event Stream: ('Scan', 'FSDJump', 'Docked')"]
+        end
+
+        subgraph Layer2 ["Layer 2: Event Policy & Trigger Engine (Caller / SDK App)"]
+            direction TB
+            EVT --> ROUTER["EventRouter & Predicate Matcher"]
+            ROUTER --> COND{"User Opt-in & Event Predicates?<br>(e.g. ScanType == 'Detailed' && !Discovered)"}
+            COND -->|Condition Met| MAP["Transform Game Entity -> Target Wire DTO"]
+            COND -->|Condition Not Met| DROP["Drop / Skip Dispatch"]
+        end
+
+        subgraph Layer3 ["Layer 3: Execution Client (ed-connectors)"]
+            direction TB
+            MAP --> EXEC["connector.eddn.publish_scan(scan_dto)"]
+            EXEC --> VLD["ed-schema Contract Validation"]
+            VLD --> TX["ed-transport Resilient Wire Dispatch"]
+        end
+    end
+```
+
+#### Extensibility for SDK Developers and End-Users
+
+To allow SDK developers and end-user applications (such as community bots, specialized exploration tools, or fleet management dashboards) to assert arbitrary custom triggers and conditions, consumer applications configure declarative routing rules:
+
+```python
+# Event routing declared in caller application / SDK tool:
+router = EventRouter(connectors=connectors)
+
+# SDK developer registers custom condition for relaying stellar data to EDDN:
+router.register_route(
+    source_event="Scan",
+    target_provider="eddn",
+    condition=lambda event: event.get("ScanType") in ("Detailed", "AutoScan")
+    and not event.get("WasDiscovered", False)
+    and user_config.opt_in_eddn,
+    transformer=transform_scan_to_eddn_dto,
+)
+
+# Inara synchronization triggered on docking at non-carrier starports:
+router.register_route(
+    source_event="Docked",
+    target_provider="inara",
+    condition=lambda event: user_config.inara_sync_enabled
+    and event.get("StationType") != "FleetCarrier",
+    transformer=transform_docked_to_inara_dto,
+)
+```
+
+By enforcing this strict separation, `ed-connectors` remains a pure, stateless execution mechanism that any caller application or orchestration engine can drive under custom gameplay conditions.
+
+### 3.7 Implications for `ed-schema` Design Plans (ADR 0001 & ADR 0002)
+
+If this RFC is accepted, `ed-schema` shifts from serving multiple decoupled client repositories to serving as the foundational contract compiler and runtime registry powering `ed-connectors`'s unified provider pipeline. While the core tenets of [ADR 0001](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0001_purpose_scope_and_boundary_taxonomy.md) (4-tuple indexing, build-time codegen, business-logic ignorance) and [ADR 0002](file:///home/michael/src/github.com/mnaatjes/ed-schema/architecture/adr/0002_abstract_http_header_modeling_and_contract_organization.md) (3-tier header categories, pre-flight validation) remain validated, `ed-schema` must expand its feature scope to support five concrete capabilities:
+
+```mermaid
+graph TD
+    subgraph EDSchema_Expanded_Capabilities ["ed-schema Capabilities Supporting Unified ed-connectors"]
+        direction TB
+
+        C1["1. Multi-Namespace Manifest Loader<br>(Batch load all provider subpackages)"]
+        C2["2. Subpackage Scoped Code Generation<br>(Output to specific provider model dirs)"]
+        C3["3. Granular Namespace Parity Verification<br>(Verify single provider or entire suite)"]
+        C4["4. DTO Naming & Namespace Isolation<br>(Prevent cross-provider class collisions)"]
+        C5["5. Composite Pre-Flight Validation Interactor<br>(Validate headers + payload in one call)"]
+    end
+```
+
+#### 1. Multi-Namespace Directory Ingestion & Manifest Loading
+* **Current ADR 0001 Baseline:** Registry assumes ingestion of schemas for an individual repository context.
+* **Expanded Requirement:** `ed-schema`'s storage adapter (`FileSystemSchemaStorageAdapter`) must support scanning and loading multiple independent provider directories dynamically:
+  ```python
+  registry.load_from_manifests(
+      [CapiProviderManifest, EddnProviderManifest, InaraProviderManifest]
+  )
+```
+  The registry must isolate schemas into their designated namespaces (`"capi"`, `"eddn"`, `"inara"`, `"spansh"`), preventing schema ID collisions across targets.
+
+#### 2. Subpackage-Targeted Build-Time Code Generation
+* **Current ADR 0001 Baseline:** Single input directory compiled to single output directory.
+* **Expanded Requirement:** Because `ed-schema` is a **pure library package** (not a standalone CLI application), its programmatic driving facade (`SchemaEngine`) must expose in-process compilation methods that downstream developer scripts (`scripts/compile_models.py` in `ed-connectors`) can invoke directly:
+  ```python
+  from ed_schema import SchemaEngine
+
+  engine = SchemaEngine()
+  # Programmatically compile dataclasses for a specific provider subpackage:
+  engine.compile_models(
+      schema_dir="src/ed_connectors/adapters/driven/providers/inara/schemas",
+      output_dir="src/ed_connectors/adapters/driven/providers/inara/models",
+      class_prefix="Inara",
+  )
+```
+
+#### 3. Granular Namespace Parity Verification
+* **Current ADR 0001 Baseline:** All-or-nothing parity check across an entire repository.
+* **Expanded Requirement:** In a unified `ed-connectors` repository with multiple providers, developers modifying only Inara need fast, targeted feedback. `ed-schema`'s verification interactor must be callable directly within test runners (e.g. `pytest tests/architecture/test_parity.py`) with granular namespace filtering:
+  ```python
+  # Executed directly inside pytest or scripts/verify.py:
+  engine.verify_parity(
+      namespace="inara",
+      schema_dir="src/ed_connectors/adapters/driven/providers/inara/schemas",
+      models_dir="src/ed_connectors/adapters/driven/providers/inara/models",
+  )
+```
+  This allows tests and local quality gates to selectively verify only the provider subpackage modified in a git commit without spawning external shell processes.
+
+#### 4. DTO Naming & Type Collision Prevention
+* **Current ADR 0001 Baseline:** Direct translation of schema titles into Python class names (e.g. `title: "Profile"` $\rightarrow$ `class Profile:`).
+* **Expanded Requirement:** In a unified repository, multiple providers expose similar concept schemas (`capi/profile.json` vs `inara/profile.json`). `ed-schema`'s code generator adapter must enforce deterministic class prefixing or namespace scoping (e.g., `CapiProfileDTO` vs `InaraProfileDTO`) to avoid global class namespace pollution.
+
+#### 5. Unified Pre-Flight Validation Interactor
+* **Current ADR 0002 Baseline:** Independent validation for headers (`validate_headers`) and payloads (`validate_payload`).
+* **Expanded Requirement:** To streamline `ed-connectors`'s `dispatch()` pipeline, `ed-schema` must provide a composite validation interactor:
+  ```python
+  class ValidateEndpointCallUseCase:
+      def execute(
+          self,
+          descriptor: SchemaDescriptor,
+          headers: dict[str, str],
+          payload: dict[str, Any] | None,
+      ) -> ValidationResult: ...
+```
+  This validates both header parameter constraints (regex, required keys) and payload body schemas in a single pre-flight step before `ed-transport` opens a socket.
+
+---
+
+## 4. Drawbacks & Risks
+
+| Risk | Description | Mitigation |
+| :--- | :--- | :--- |
+| **Release Blast Radius** | A patch to Frontier CAPI triggers a release tag for `ed-connectors`. | Isolated provider subpackages and automated unit test suites ensure regressions in untouched providers are caught in CI. |
+| **Package Size** | Shipping JSON schemas for all providers increases wheel size. | JSON schemas and compiled Python models total $< 2 \text{ MB}$, negligible compared to Python runtime footprints. |
+| **Breaking Upstream Changes** | Frontier game updates frequently modify CAPI endpoints unexpectedly. | `ed-schema verify-parity` CI check detects contract discrepancies; downstream consumers pin minor versions until validated. |
+
+---
+
+## 5. Prior Art & Alternatives
+
+* **Alternative A: Independent Bespoke Packages (`ed-capi`, `ed-eddn`, `ed-inara`):**
+  * *Evaluation:* Rejected due to severe operational overhead (4+ repos, 4+ CI pipelines, version desynchronization, high maintenance friction).
+* **Alternative B: Central External Schema Repository (Git Submodule):**
+  * *Evaluation:* Rejected due to git submodule complexity, runtime synchronization failures, and inability to compile Python dataclasses at wheel build time.
+* **Prior Art:**
+  * **AWS SDK (Botocore):** Models dozens of disparate AWS service APIs within a single package using declarative JSON service definitions and centralized transport engines.
+  * **Stripe / GitHub SDKs:** Centralized client suites wrapping heterogeneous endpoints behind consistent resource namespaces.
+
+---
+
+## 6. Implementation Plan & Next Steps
+
+1. **Accept RFC 0001:** Merge RFC into `ed-schema/architecture/rfcs/`.
+2. **Initialize `ed-connectors` Repository:** Instantiate `python-hexagonal-template` at `/home/michael/src/github.com/mnaatjes/ed-connectors`.
+3. **Implement Core Engine:** Wire `ed-transport` and `ed-schema` into `ed-connectors` bootstrap container.
+4. **Migrate Providers:** Implement `capi/`, `eddn/`, and `inara/` as subpackages adhering to `ProviderManifest`.
