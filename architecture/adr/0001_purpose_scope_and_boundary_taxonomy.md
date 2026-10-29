@@ -66,9 +66,101 @@ Chosen Option: **Option 3: Foundational Hexagonal Engine Library (`ed-schema`)**
 | **5. Build-Time Python Dataclass Generation** | Programmatic wrapping and CLI execution of `datamodel-code-generator` to compile canonical JSON schemas into high-performance Python dataclasses. | Driven Adapter (`adapters/driven/codegen/`) & Driving CLI (`adapters/driving/cli/`). |
 | **6. Business-Logic Ignorance** | Zero references to ships, modules, commanders, or game systems. Strict processing of structural types, validation constraints, and schema metadata. | Invariant across the entire codebase enforced by import linting and AST architectural tests. |
 
+### 2. API Target Composition Analysis & Relationship Hierarchies
+
+To formulate deterministic registries of dataclasses compiled from Standard JSON Schemas, `ed-schema` models the structural hierarchies governing how API endpoints bind to payloads. Fleet targets exhibit four distinct structural composition patterns:
+
+```mermaid
+graph TD
+    subgraph Fleet_Composition_Hierarchies ["API Target Composition Hierarchies"]
+        direction TB
+
+        subgraph P1 ["Pattern 1: 1:1 Direct REST Endpoint"]
+            direction TB
+            EP1["Endpoint: /profile"] -->|1:1 Direct| S1["Schema: CapiProfilePayload"]
+            EP2["Endpoint: /market"] -->|1:1 Direct| S2["Schema: CapiMarketPayload"]
+        end
+
+        subgraph P2 ["Pattern 2: 1:N Root Discriminator Polymorphism"]
+            direction TB
+            EP3["Endpoint: /upload/"] -->|Inspect Root $schemaRef| D1{"$schemaRef"}
+            D1 -->|journal/v1| S3["Schema: EDDNJournalPayload"]
+            D1 -->|commodity/v3| S4["Schema: EDDNCommodityPayload"]
+            D1 -->|shipyard/v2| S5["Schema: EDDNShipyardPayload"]
+        end
+
+        subgraph P3 ["Pattern 3: 1:N Nested Batch-Item RPC Discriminator"]
+            direction TB
+            EP4["Endpoint: /inapi/v1/"] -->|Top-Level Envelope| S6["Schema: InaraEnvelope"]
+            S6 -->|events[] array| D2{"events[*].eventName"}
+            D2 -->|getCommanderProfile| S7["Schema: InaraProfileEventData"]
+            D2 -->|setCommanderShip| S8["Schema: InaraSetShipEventData"]
+            D2 -->|addCommanderCombatKill| S9["Schema: InaraCombatKillEventData"]
+        end
+
+        subgraph P4 ["Pattern 4: 1:1 Parameterized REST Query"]
+            direction TB
+            EP5["Endpoint: /api/v1/systems"] -->|QueryParams + Schema| S10["Schema: SpanshSystemsResponse"]
+        end
+    end
+
+    subgraph Schema_Registry_Hierarchy ["Composite Registry Indexing Hierarchy"]
+        direction TB
+        REG["CompositeSchemaRegistry"] --> NS["Namespace (e.g. inara, eddn, capi)"]
+        NS --> EP["Endpoint Route (e.g. /inapi/v1/)"]
+        EP --> DISC["Discriminator Value / None"]
+        DISC --> TARGET["Compiled Python Dataclass & JSON Schema"]
+    end
+```
+
+#### Detailed Composition Breakdown Across Fleet Targets
+
+| API Target | Composition Pattern | Endpoint Mapping | Discriminator Mechanism | Payload Location & Schema Hierarchy |
+| :--- | :--- | :--- | :--- | :--- |
+| **Frontier CAPI** | **1:1 Direct REST** | `/profile`<br>`/market`<br>`/shipyard`<br>`/fleetcarrier` | None (Direct 1:1) | The entire HTTP response body maps to a dedicated, top-level dataclass per endpoint (e.g., `CapiProfile`, `CapiMarket`). |
+| **EDDN Gateway** | **1:N Root-Level Discriminator** | `https://eddn.edcd.io:4430/upload/` | Root-level `$schemaRef` string URI | The outer envelope is universal (`$schemaRef`, `header`, `message`). The `$schemaRef` string discriminator dynamically dictates the model schema for the nested `message` object (`JournalModel`, `CommodityModel`, `OutfittingModel`). |
+| **Inara API** | **1:N Nested Batch-Item RPC** | `https://inara.cz/inapi/v1/` | Nested `events[*].eventName` string | Outer JSON envelope contains client credentials and header (`InaraEnvelope`). The `events` array contains heterogeneous items where each item's `eventName` field discriminates the sub-schema for `eventData`. |
+| **Spansh API** | **1:1 Parameterized REST** | `/api/dump/*`<br>`/api/systems` | None (Direct 1:1) | Request query parameters or JSON body map to a single deterministic response schema (e.g., `SpanshSystemSearchResponse`). |
+| **EDSM API** | **1:1 Legacy RPC** | `/api-v1/system`<br>`/api-v1/logs` | None (Direct 1:1) | Fixed query parameter / form-data inputs returning deterministic endpoint-specific JSON structures. |
+
+#### Abstract Registry Indexing Model in `ed-schema`
+
+To accommodate both direct 1:1 endpoints and nested 1:N polymorphic event streams in a uniform hierarchy, the registry indexing key is structured as a 4-tuple:
+
+```
+Registry Key: (namespace, endpoint, discriminator_field, discriminator_value)
+```
+
+1. **Direct 1:1 Resolution (e.g. Frontier CAPI `/profile`):**
+   ```python
+   key = ("capi", "/profile", None, None)
+   dataclass_type = registry.resolve(key)  # -> CapiProfilePayload
+```
+2. **Root 1:N Resolution (e.g. EDDN `/upload/`):**
+   ```python
+   # Discriminator extracted from payload["$schemaRef"]
+   key = (
+       "eddn",
+       "/upload/",
+       "$schemaRef",
+       "https://eddn.edcd.io/schemas/journal/1",
+   )
+   dataclass_type = registry.resolve(key)  # -> EDDNJournalPayload
+```
+3. **Nested 1:N Resolution (e.g. Inara `/inapi/v1/`):**
+   ```python
+   # Envelope resolved via 1:1, nested event resolved via 1:N
+   envelope_cls = registry.resolve(
+       ("inara", "/inapi/v1/", None, None)
+   )  # -> InaraEnvelope
+   event_data_cls = registry.resolve(
+       ("inara", "/inapi/v1/", "eventName", "getCommanderProfile")
+   )  # -> InaraProfileEventData
+```
+
 ---
 
-### 2. Critical Architectural Anti-Patterns & Guardrails
+### 3. Critical Architectural Anti-Patterns & Guardrails
 
 To prevent architectural degradation, `ed-schema` strictly enforces four architectural guardrails:
 
@@ -131,7 +223,7 @@ To prevent architectural degradation, `ed-schema` strictly enforces four archite
 
 ---
 
-### 3. Layered Hexagonal Architecture of `ed-schema`
+### 4. Layered Hexagonal Architecture of `ed-schema`
 
 Following the hexagonal pattern, `ed-schema` structures its boundaries as follows:
 
