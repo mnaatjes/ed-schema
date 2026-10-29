@@ -463,6 +463,7 @@ def test_ports_adhere_to_strict_import_whitelist() -> None:
         "datetime",
         "uuid",
         "enum",
+        "pathlib",
     }
 
     for py_file in ports_dir.rglob("*.py"):
