@@ -62,3 +62,21 @@ class TestCompileDataclassesUseCase:
             class_prefix="Test",
         )
         assert compiled == ()
+
+    def test_normalized_module_filename(self, tmp_path: Path) -> None:
+        schema_dir = tmp_path / "schemas"
+        output_dir = tmp_path / "models"
+        schema_file = schema_dir / "journal-v1.0.json"
+
+        storage = FakeSchemaStorageAdapter(schemas={schema_file: {"type": "object"}})
+        generator = FakeDatamodelGeneratorAdapter()
+        use_case = CompileDataclassesUseCase(storage=storage, generator=generator)
+
+        compiled = use_case.execute(
+            schema_dir=schema_dir,
+            output_dir=output_dir,
+            class_prefix="Eddn",
+        )
+
+        assert len(compiled) == 1
+        assert compiled[0] == output_dir / "journal_v1_0.py"

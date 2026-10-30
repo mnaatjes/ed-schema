@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from ed_schema.core.domain.exceptions import SchemaCompilationError
+from ed_schema.core.domain.sanitization import (
+    derive_class_title,
+    sanitize_identifier,
+)
 from ed_schema.core.ports.driven.datamodel_generator_port import (
     DatamodelGeneratorPort,
 )
@@ -49,15 +53,9 @@ class DatamodelCodeGeneratorAdapter(DatamodelGeneratorPort):
             raise SchemaCompilationError(msg)
 
         # Build clean PascalCase class name
-        title = schema_data.get("title")
-        if not title:
-            # Fall back to file stem
-            stem = schema_path.stem.replace("-", "_").replace(".", "_")
-            title = "".join(part.capitalize() for part in stem.split("_") if part)
-
-        clean_title = "".join(ch for ch in title if ch.isalnum() or ch == "_")
+        title = derive_class_title(schema_path, schema_data.get("title"))
         clean_prefix = "".join(ch for ch in class_prefix if ch.isalnum() or ch == "_")
-        class_name = f"{clean_prefix}{clean_title}DTO"
+        class_name = f"{clean_prefix}{title}DTO"
 
         # Synthesize typed Python dataclass source code
         code_lines = [
@@ -100,13 +98,13 @@ class DatamodelCodeGeneratorAdapter(DatamodelGeneratorPort):
             for p in req_props:
                 p_schema = properties[p]
                 t_str = type_map.get(p_schema.get("type", ""), "Any")
-                clean_field = p if p.isidentifier() else f"_{p}"
+                clean_field = sanitize_identifier(p)
                 code_lines.append(f"    {clean_field}: {t_str}")
 
             for p in opt_props:
                 p_schema = properties[p]
                 t_str = type_map.get(p_schema.get("type", ""), "Any")
-                clean_field = p if p.isidentifier() else f"_{p}"
+                clean_field = sanitize_identifier(p)
                 code_lines.append(f"    {clean_field}: {t_str} | None = None")
 
             code_lines.append("")
