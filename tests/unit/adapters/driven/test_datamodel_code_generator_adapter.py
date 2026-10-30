@@ -127,3 +127,108 @@ def test_generate_dataclasses_sanitizes_dollar_sign_and_illegal_identifiers(
     # Assert generated Python code parses into valid AST with zero SyntaxError
     tree = ast.parse(content)
     assert tree is not None
+
+
+def test_generate_dataclasses_recursive_nested_objects(tmp_path: Path) -> None:
+    """Verifies recursive dataclass generation for nested objects."""
+    adapter = DatamodelCodeGeneratorAdapter()
+    schema_file = tmp_path / "nested.json"
+    output_file = tmp_path / "models" / "nested.py"
+
+    schema_content = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Payload",
+        "type": "object",
+        "required": ["header", "message"],
+        "properties": {
+            "header": {
+                "type": "object",
+                "required": ["uploaderID"],
+                "properties": {
+                    "uploaderID": {"type": "string"},
+                    "version": {"type": "integer"},
+                },
+            },
+            "message": {
+                "type": "object",
+                "required": ["event"],
+                "properties": {
+                    "event": {"type": "string"},
+                    "nested_sub": {
+                        "type": "object",
+                        "properties": {
+                            "coord": {"type": "number"},
+                        },
+                    },
+                },
+            },
+        },
+    }
+    schema_file.write_text(json.dumps(schema_content), encoding="utf-8")
+
+    adapter.generate_dataclasses(
+        schema_path=schema_file,
+        output_file=output_file,
+        class_prefix="Capi",
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding="utf-8")
+
+    # Assert nested classes were generated
+    assert "class CapiPayloadHeaderDTO:" in content
+    assert "class CapiPayloadMessageDTO:" in content
+    assert "class CapiPayloadMessageNestedSubDTO:" in content
+    assert "class CapiPayloadDTO:" in content
+
+    # Assert parent class references child classes
+    assert "header: CapiPayloadHeaderDTO" in content
+    assert "message: CapiPayloadMessageDTO" in content
+
+    # Assert valid Python AST syntax
+    tree = ast.parse(content)
+    assert tree is not None
+
+
+def test_generate_dataclasses_recursive_arrays(tmp_path: Path) -> None:
+    """Verifies recursive dataclass generation for object array items."""
+    adapter = DatamodelCodeGeneratorAdapter()
+    schema_file = tmp_path / "batch.json"
+    output_file = tmp_path / "models" / "batch.py"
+
+    schema_content = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "BatchEvent",
+        "type": "object",
+        "required": ["events"],
+        "properties": {
+            "events": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["event_name"],
+                    "properties": {
+                        "event_name": {"type": "string"},
+                        "event_id": {"type": "integer"},
+                    },
+                },
+            },
+        },
+    }
+    schema_file.write_text(json.dumps(schema_content), encoding="utf-8")
+
+    adapter.generate_dataclasses(
+        schema_path=schema_file,
+        output_file=output_file,
+        class_prefix="Inara",
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding="utf-8")
+
+    assert "class InaraBatchEventEventsItemDTO:" in content
+    assert "class InaraBatchEventDTO:" in content
+    assert "events: list[InaraBatchEventEventsItemDTO]" in content
+
+    tree = ast.parse(content)
+    assert tree is not None
