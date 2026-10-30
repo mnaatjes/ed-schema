@@ -31,7 +31,7 @@ from ed_schema.core.domain.sanitization import (
     sanitize_identifier,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 __all__ = (
     "ContractViolationError",

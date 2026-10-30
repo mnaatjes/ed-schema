@@ -1,4 +1,4 @@
-# ed-schema `v1.0.0`
+# ed-schema `v1.0.1`
 
 Deterministic JSON Schema registry, contract validator, and code generation engine for Elite Dangerous
 

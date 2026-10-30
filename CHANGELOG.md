@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-30
+
 ### Fixed
 - Sanitized schema property identifiers into valid Python attribute names, stripping leading `$` (e.g. `$schemaRef` -> `schemaRef`), guarding against Python keywords, and normalizing invalid characters (`ADR 0010`, `SDD-007`).
 - Normalized generated Python module filenames to valid snake_case identifiers (e.g. `journal-v1.0.json` -> `journal_v1_0.py`) in `CompileDataclassesUseCase` and `VerifySchemaParityUseCase` (`ADR 0010`, `SDD-007`).
