@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Recursive nested Python dataclass generation for child objects and object array items in `DatamodelCodeGeneratorAdapter` (`ADR 0011`, `SDD-008`).
+- Topological class ordering ensuring child dataclasses precede parent classes with clean contextual naming (`{Prefix}{Parent}{Child}DTO`).
+
 ## [1.0.1] - 2026-10-30
 
 ### Fixed
