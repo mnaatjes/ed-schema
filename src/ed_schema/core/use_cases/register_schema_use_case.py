@@ -76,6 +76,7 @@ class RegisterSchemaUseCase:
                 descriptor = SchemaDescriptor(
                     key=key,
                     schema_definition=schema_def,
+                    model_cls=endpoint.model_cls,
                     header_contract=endpoint.header_contract,
                 )
                 self.register(descriptor)

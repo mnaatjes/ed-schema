@@ -39,6 +39,9 @@ def test_schema_engine_e2e_workflow(tmp_path: Path) -> None:
     # 2. Instantiate production SchemaEngine
     engine = create_schema_engine()
 
+    class CapiProfileDTO:
+        pass
+
     # 3. Define manifest stub and batch load
     class CapiManifest:
         name = "capi"
@@ -47,6 +50,7 @@ def test_schema_engine_e2e_workflow(tmp_path: Path) -> None:
             EndpointContract(
                 route="/profile",
                 schema_file="profile.json",
+                model_cls=CapiProfileDTO,
                 header_contract=HeaderContract(
                     parameters=(
                         HeaderParameterContract(
@@ -67,6 +71,7 @@ def test_schema_engine_e2e_workflow(tmp_path: Path) -> None:
     descriptor = engine.resolve_descriptor(key)
     assert descriptor is not None
     assert descriptor.schema_definition["title"] == "CommanderProfile"
+    assert descriptor.model_cls is CapiProfileDTO
 
     # 5. Pre-flight validate call: successful case
     good_validation = engine.validate_call(
