@@ -27,6 +27,10 @@ class SchemaCompilationError(DomainError):
     """Raised when build-time code generation encounters fatal syntax errors."""
 
 
+class SchemaStorageError(DomainError):
+    """Raised when schema file persistence or retrieval encounters errors."""
+
+
 class HealthCheckFailedError(DomainError):
     """Raised when an assertive operational health check fails."""
 
@@ -38,5 +42,6 @@ __all__ = (
     "ContractViolationError",
     "SchemaParityError",
     "SchemaCompilationError",
+    "SchemaStorageError",
     "HealthCheckFailedError",
 )

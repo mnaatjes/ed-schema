@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Core domain model entities, composite registry, and hierarchy exceptions under `src/ed_schema/core/domain/` (`SDD-002`, `ADR 0001`, `ADR 0004`, `ADR 0005`).
+- Hexagonal boundary port definitions across driving (`SchemaRegistryPort`, `SchemaValidatorPort`, `SchemaCompilerPort`, `ParityVerifierPort`) and driven (`SchemaStoragePort`, `SchemaParserPort`, `HeaderValidatorPort`, `DatamodelGeneratorPort`) interfaces under `src/ed_schema/core/ports/` (`SDD-002`).
+- Reusable in-memory test doubles (`FakeSchemaStorageAdapter`, `FakeSchemaParserAdapter`, `FakeDatamodelGeneratorAdapter`, `FakeHeaderValidatorAdapter`) under `tests/doubles/fake_schema_adapters.py`.
+- Stateless core use case interactors (`RegisterSchemaUseCase`, `CompileDataclassesUseCase`, `VerifySchemaParityUseCase`, `ValidatePreFlightContractUseCase`) under `src/ed_schema/core/use_cases/` with comprehensive unit test coverage (`SDD-003`, `UC-01` through `UC-04`).
+- Software Design Documents [`SDD-002: Core Domain and Ports Architecture`](architecture/designs/0002_core_domain_and_ports_architecture.md) and [`SDD-003: Core Use Cases and Interactors Architecture`](architecture/designs/0003_core_use_cases_and_interactors_architecture.md).
+
 ## [0.1.0] - 2026-10-29
 
 ### Added
