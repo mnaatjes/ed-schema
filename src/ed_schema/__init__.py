@@ -26,7 +26,7 @@ from ed_schema.core.domain.models import (
     ValidationResult,
 )
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 
 __all__ = (
     "ContractViolationError",

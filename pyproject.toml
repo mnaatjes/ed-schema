@@ -1,6 +1,6 @@
 [project]
 name = "ed-schema"
-version = "0.1.0"
+version = "1.0.0"
 description = "Deterministic JSON Schema registry, contract validator, and code generation engine for Elite Dangerous"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -36,7 +36,7 @@ testpaths = ["tests"]
 pythonpath = [".", "src"]
 
 [tool.bumpversion]
-current_version = "0.1.0"
+current_version = "1.0.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-30
+
 ### Added
 - Core domain model entities, composite registry, and hierarchy exceptions under `src/ed_schema/core/domain/` (`SDD-002`, `ADR 0001`, `ADR 0004`, `ADR 0005`).
 - Declarative compiled model class binding on `EndpointContract` forwarding to `SchemaDescriptor.model_cls` (`ADR 0009`, `SDD-006`).
