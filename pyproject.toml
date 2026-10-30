@@ -68,4 +68,4 @@ replace = "v{new_version}"
 [[tool.bumpversion.files]]
 filename = "CHANGELOG.md"
 search = "## [Unreleased]"
-replace = "## [Unreleased]\n\n## [{new_version}] - 2026-10-29"
+replace = "## [Unreleased]\n\n## [{new_version}] - 2026-10-30"
