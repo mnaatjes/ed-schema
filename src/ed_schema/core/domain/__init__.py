@@ -8,6 +8,7 @@ from ed_schema.core.domain.exceptions import (
     SchemaCompilationError,
     SchemaParityError,
     SchemaRegistrationError,
+    SchemaStorageError,
 )
 from ed_schema.core.domain.health import HealthStatus
 from ed_schema.core.domain.models import (
@@ -29,6 +30,7 @@ __all__ = (
     "ContractViolationError",
     "SchemaParityError",
     "SchemaCompilationError",
+    "SchemaStorageError",
     "HealthCheckFailedError",
     "HealthStatus",
     "SchemaKey",
