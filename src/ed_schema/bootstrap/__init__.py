@@ -1,5 +1,11 @@
-"""Composition root and dependency injection wiring."""
+"""Bootstrap subpackage for dependency injection and composition root."""
 
-from .container import Container
+from __future__ import annotations
 
-__all__ = ["Container"]
+from ed_schema.bootstrap.client_factory import create_schema_engine
+from ed_schema.bootstrap.container import Container
+
+__all__ = (
+    "Container",
+    "create_schema_engine",
+)
