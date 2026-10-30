@@ -76,6 +76,7 @@ class EndpointContract:
     discriminator_field: str | None = None
     discriminator_value: str | None = None
     header_contract: HeaderContract | None = None
+    model_cls: type | None = None
 
     def __post_init__(self) -> None:
         if not self.route or not self.route.startswith("/"):
@@ -86,6 +87,12 @@ class EndpointContract:
             raise DomainValidationError(
                 f"EndpointContract 'schema_file' must be a .json file: {self.schema_file}"
             )
+        if self.model_cls is not None and not isinstance(self.model_cls, type):
+            msg = (
+                f"EndpointContract 'model_cls' must be a type or None, "
+                f"got: {type(self.model_cls).__name__}"
+            )
+            raise DomainValidationError(msg)
 
 
 @dataclass(frozen=True)

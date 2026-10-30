@@ -105,6 +105,25 @@ class TestEndpointContract:
         with pytest.raises(DomainValidationError, match="must be a .json file"):
             EndpointContract(route="/market", schema_file="market.yaml")
 
+    def test_valid_endpoint_contract_with_model_cls(self) -> None:
+        class DummyDTO:
+            pass
+
+        ep = EndpointContract(
+            route="/market",
+            schema_file="market.json",
+            model_cls=DummyDTO,
+        )
+        assert ep.model_cls is DummyDTO
+
+    def test_invalid_model_cls_type_raises_error(self) -> None:
+        with pytest.raises(DomainValidationError, match="must be a type or None"):
+            EndpointContract(
+                route="/market",
+                schema_file="market.json",
+                model_cls="not_a_type",  # type: ignore[arg-type]
+            )
+
 
 class TestSchemaDescriptor:
     """Tests for SchemaDescriptor contract bundle."""

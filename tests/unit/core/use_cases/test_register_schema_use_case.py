@@ -55,10 +55,19 @@ class TestRegisterSchemaUseCase:
         )
         use_case = RegisterSchemaUseCase(storage=storage)
 
+        class SampleProfileDTO:
+            pass
+
         manifest = DummyManifest(
             name="capi",
             schema_dir=Path("/mock/providers/capi/schemas"),
-            endpoints=(EndpointContract(route="/profile", schema_file="profile.json"),),
+            endpoints=(
+                EndpointContract(
+                    route="/profile",
+                    schema_file="profile.json",
+                    model_cls=SampleProfileDTO,
+                ),
+            ),
         )
 
         count = use_case.execute([manifest])
@@ -67,6 +76,7 @@ class TestRegisterSchemaUseCase:
         resolved = use_case.resolve(SchemaKey(namespace="capi", endpoint="/profile"))
         assert resolved is not None
         assert resolved.schema_definition["title"] == "Profile"
+        assert resolved.model_cls is SampleProfileDTO
 
     def test_execute_with_missing_schema_raises_error(self) -> None:
         storage = FakeSchemaStorageAdapter(schemas={})
