@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ed_schema.core.domain.exceptions import SchemaCompilationError
+from ed_schema.core.domain.sanitization import normalize_module_filename
 from ed_schema.core.ports.driven.datamodel_generator_port import (
     DatamodelGeneratorPort,
 )
@@ -49,8 +50,8 @@ class CompileDataclassesUseCase:
             if not schema_file.name.endswith(".json"):
                 continue
 
-            stem = schema_file.stem
-            out_file = output_dir / f"{stem}.py"
+            out_filename = normalize_module_filename(schema_file)
+            out_file = output_dir / out_filename
 
             try:
                 self._generator.generate_dataclasses(

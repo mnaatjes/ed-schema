@@ -79,3 +79,51 @@ def test_generate_dataclasses_corrupt_json_raises_compilation_error(tmp_path: Pa
             output_file=output_file,
             class_prefix="Capi",
         )
+
+
+def test_generate_dataclasses_sanitizes_dollar_sign_and_illegal_identifiers(
+    tmp_path: Path,
+) -> None:
+    """Verifies $schemaRef, hyphens, and keywords are sanitized to valid Python identifiers."""
+    adapter = DatamodelCodeGeneratorAdapter()
+    schema_file = tmp_path / "journal-v1.0.json"
+    output_file = tmp_path / "models" / "journal_v1_0.py"
+
+    schema_content = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "Journal",
+        "description": "EDDN Journal payload.",
+        "type": "object",
+        "required": ["$schemaRef", "import"],
+        "properties": {
+            "$schemaRef": {"type": "string"},
+            "import": {"type": "string"},
+            "kebab-case-prop": {"type": "integer"},
+            "123numeric": {"type": "string"},
+        },
+    }
+    schema_file.write_text(json.dumps(schema_content), encoding="utf-8")
+
+    adapter.generate_dataclasses(
+        schema_path=schema_file,
+        output_file=output_file,
+        class_prefix="Eddn",
+    )
+
+    assert output_file.exists()
+    content = output_file.read_text(encoding="utf-8")
+
+    # Assert valid class name
+    assert "class EddnJournalDTO:" in content
+    # Assert $schemaRef stripped to schemaRef
+    assert "schemaRef: str" in content
+    # Assert keyword 'import' suffixed to 'import_'
+    assert "import_: str" in content
+    # Assert kebab-case normalized to underscore
+    assert "kebab_case_prop: int | None = None" in content
+    # Assert numeric identifier prefixed
+    assert "field_123numeric: str | None = None" in content
+
+    # Assert generated Python code parses into valid AST with zero SyntaxError
+    tree = ast.parse(content)
+    assert tree is not None

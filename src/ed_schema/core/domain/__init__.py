@@ -22,6 +22,11 @@ from ed_schema.core.domain.models import (
     SchemaValidationError,
     ValidationResult,
 )
+from ed_schema.core.domain.sanitization import (
+    derive_class_title,
+    normalize_module_filename,
+    sanitize_identifier,
+)
 
 __all__ = (
     "DomainError",
@@ -42,4 +47,7 @@ __all__ = (
     "ValidationResult",
     "ParityMismatch",
     "ParityReport",
+    "derive_class_title",
+    "normalize_module_filename",
+    "sanitize_identifier",
 )

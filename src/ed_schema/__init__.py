@@ -25,6 +25,11 @@ from ed_schema.core.domain.models import (
     SchemaValidationError,
     ValidationResult,
 )
+from ed_schema.core.domain.sanitization import (
+    derive_class_title,
+    normalize_module_filename,
+    sanitize_identifier,
+)
 
 __version__ = "1.0.0"
 
@@ -49,4 +54,7 @@ __all__ = (
     "ValidationResult",
     "__version__",
     "create_schema_engine",
+    "derive_class_title",
+    "normalize_module_filename",
+    "sanitize_identifier",
 )

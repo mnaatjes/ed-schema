@@ -7,6 +7,11 @@ from pathlib import Path
 
 from ed_schema.core.domain.exceptions import SchemaParityError
 from ed_schema.core.domain.models import ParityMismatch, ParityReport
+from ed_schema.core.domain.sanitization import (
+    derive_class_title,
+    normalize_module_filename,
+    sanitize_identifier,
+)
 from ed_schema.core.ports.driven.schema_storage_port import SchemaStoragePort
 
 
@@ -50,13 +55,15 @@ class VerifySchemaParityUseCase:
             properties = schema_doc.get("properties", {})
             required_fields = set(schema_doc.get("required", []))
 
-            stem = schema_file.stem
-            model_file = models_dir / f"{stem}.py"
+            model_filename = normalize_module_filename(schema_file)
+            model_file = models_dir / model_filename
+            entity_title = derive_class_title(schema_file, schema_doc.get("title"))
+            expected_class_name = f"{class_prefix}{entity_title}DTO"
 
             if not model_file.exists():
                 mismatches.append(
                     ParityMismatch(
-                        entity_name=f"{class_prefix}{stem.capitalize()}DTO",
+                        entity_name=expected_class_name,
                         attribute_name="__file__",
                         mismatch_type="MISSING_FILE",
                         description=f"Generated model file does not exist: {model_file}",
@@ -79,14 +86,16 @@ class VerifySchemaParityUseCase:
                             model_fields.add(item.target.id)
 
             for prop_name in properties:
-                if prop_name in required_fields and prop_name not in model_fields:
+                sanitized_prop = sanitize_identifier(prop_name)
+                if prop_name in required_fields and sanitized_prop not in model_fields:
                     mismatches.append(
                         ParityMismatch(
-                            entity_name=f"{class_prefix}{stem.capitalize()}DTO",
+                            entity_name=expected_class_name,
                             attribute_name=prop_name,
                             mismatch_type="MISSING_FIELD",
                             description=(
-                                f"Required schema property '{prop_name}' missing in "
+                                f"Required schema property '{prop_name}' "
+                                f"(sanitized: '{sanitized_prop}') missing in "
                                 f"{model_file.name}"
                             ),
                         )
